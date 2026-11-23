@@ -14,7 +14,7 @@
 // (a whole PNG, at most 1 MiB and 1024x1024 pixels).
 
 import { deflateSync } from "node:zlib";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -367,20 +367,20 @@ function drawTableAndService(): void {
   circle(474, 577, 3, [51, 51, 51]);
   line(492, 570, 500, 578, 3, [176, 110, 44]);
   line(508, 570, 516, 578, 3, [176, 110, 44]);
-  // Steam curls.
-  for (const sx of [488, 518]) {
-    for (let i = 0; i < 24; i++) {
-      const t = i / 24;
-      circle(sx + Math.sin(t * 5.2) * 6, 556 - t * 42, 3, [200, 200, 200], 0.5);
+  // Steam curls, kept short so they hug the fish they rise from.
+  for (const sx of [490, 516]) {
+    for (let i = 0; i < 18; i++) {
+      const t = i / 18;
+      circle(sx + Math.sin(t * 5.2) * 5, 560 - t * 28, 3, [200, 200, 200], 0.45);
     }
   }
 
-  // A glass of milk, poured properly.
-  poly([[622, 538], [658, 538], [652, 572], [628, 572]], [207, 232, 245], 0.55);
-  poly([[626, 554], [654, 554], [652, 572], [628, 572]], [255, 255, 255], 0.95);
-  polyS([[622, 538], [658, 538], [652, 572], [628, 572]], [207, 232, 245], [125, 136, 148], 2);
-  line(640, 572, 640, 592, 5, [125, 136, 148]);
-  ellipse(640, 594, 16, 4, [125, 136, 148]);
+  // A glass of milk, poured properly, on the cat's other side.
+  poly([[332, 538], [368, 538], [362, 572], [338, 572]], [207, 232, 245], 0.55);
+  poly([[336, 554], [364, 554], [362, 572], [338, 572]], [255, 255, 255], 0.95);
+  polyS([[332, 538], [368, 538], [362, 572], [338, 572]], [207, 232, 245], [125, 136, 148], 2);
+  line(350, 572, 350, 592, 5, [125, 136, 148]);
+  ellipse(350, 594, 16, 4, [125, 136, 148]);
 
   // The waiter's near arm, presenting the covered dish over the table.
   line(792, 502, 742, 526, 23, INK);
@@ -541,4 +541,16 @@ const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 mkdirSync(outDir, { recursive: true });
 const outPath = join(outDir, "entry.png");
 writeFileSync(outPath, png);
-console.log(`wrote ${outPath}: ${png.length} bytes, ${W}x${H}`);
+
+// Read the file back and hold it to the gate before finishing: a whole PNG,
+// at most 1 MiB, at most 1024x1024 pixels. A bad file is never judged, so
+// failing loudly here beats ranking with a Valid of 0.
+const back = readFileSync(outPath);
+const sig = [137, 80, 78, 71, 13, 10, 26, 10];
+if (back.length > 1_048_576) throw new Error(`entry.png is ${back.length} bytes, over the 1 MiB gate`);
+if (!sig.every((b, i) => back[i] === b)) throw new Error("entry.png does not start with the PNG signature");
+const view = new DataView(back.buffer, back.byteOffset, back.byteLength);
+const pw = view.getUint32(16);
+const ph = view.getUint32(20);
+if (pw > 1024 || ph > 1024) throw new Error(`entry.png is ${pw}x${ph}, over the 1024x1024 gate`);
+console.log(`wrote ${outPath}: ${back.length} bytes, ${pw}x${ph}, gate checks pass`);
